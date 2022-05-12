@@ -1,3 +1,4 @@
+import pydicom
 from Handler.DataHandler import DataHandler
 import numpy as np
 import torch
@@ -13,7 +14,12 @@ from skimage.util import view_as_blocks
 from Train.TrainHelper import constructSetting, getBatchData
 from torch.optim import Adam
 
-test=DataHandler("???", aapmMayoConfiguration)
+test=DataHandler(experimentConfiguration, aapmMayoConfiguration)
+result=test.loadAapmMayo3D()
+
+for value in result.values():
+    print(len(value))
+
 
 
 '''
