@@ -6,7 +6,6 @@ import torch
 
 from General.Configuration import compressionConfiguration, experimentConfiguration, loadingConfiguration
 from scipy import ndimage
-from skimage.util import view_as_blocks
 
 #Unfinished Function
 def loadOSIC(datasetPath):
@@ -215,23 +214,6 @@ def splitTrainValidation(dataset, trainProportion=loadingConfiguration.trainProp
 
     return {"train":training, "validation":validation, "test":test}
 
-def patchExtraction3D(dataset, windowSize=experimentConfiguration.patchWindowShape):
-    '''
-        Extract patches from 3D image dataset and return a 4D np array
-
-        Within each file the depth of the image is not consistent, so it
-    has to be manually expanded first for 3D patch extraction
-    '''
-    result=[]
-    for i in range(len(dataset)):
-        template=view_as_blocks(dataset[i], windowSize)
-        for j in range(template.shape[0]):
-            for k in range(template.shape[1]):
-                for l in range(template.shape[2]):
-                    result.append(template[j][k][l])
-    
-    return result
-
 def truncate3DImage(image, depth=experimentConfiguration.patchWindowShape[0]):
     '''
         Truncate the 3D image arrays in z-axis to allow fixed window
@@ -305,11 +287,17 @@ def loadSlice(datasetPath):
     slice=truncateSlice(slice)
     return slice
 
-def truncateSlice(slice, depth=64):
+def truncateSlice(slice, depth=experimentConfiguration.patchWindowShape[0]):
     '''
-        Truncate the slice in z-axis to allow fixed window patch extraction
+        Truncate the slice in z-axis to allow non-overlapping voxel patch
+    extraction
+
+        If the window is not given, simply return all slices
     '''
-    truncateTotal=len(slice)%depth
-    truncateStart=int(truncateTotal/2)
-    truncateEnd=truncateTotal-truncateStart
-    return slice[truncateStart:len(slice)-truncateEnd]
+    try:
+        truncateTotal=len(slice)%depth
+        truncateStart=int(truncateTotal/2)
+        truncateEnd=truncateTotal-truncateStart
+        return slice[truncateStart:len(slice)-truncateEnd]
+    except:
+        return slice

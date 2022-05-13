@@ -1,12 +1,13 @@
 import pydicom
 from Handler.DataHandler import DataHandler
 import numpy as np
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as functional
 
 from General.Configuration import experimentConfiguration, unetConfiguration, aapmMayoConfiguration
-from General.DataLoading import loadAapmMayo, loadAapmMayoHRTest, loadHRPatch, loadLoss, patchExtraction3D, splitTrainValidation, truncate3DImage, loadPairPatch
+from General.DataLoading import loadAapmMayo, loadAapmMayoHRTest, loadHRPatch, loadLoss, splitTrainValidation, truncate3DImage, loadPairPatch
 from General.DataPlotting import plot3DImage, plotImage
 from Model.DenseNet import DenseNet
 from General.Evaluation import superLoss
@@ -14,11 +15,16 @@ from skimage.util import view_as_blocks
 from Train.TrainHelper import constructSetting, getBatchData
 from torch.optim import Adam
 
-test=DataHandler(experimentConfiguration, aapmMayoConfiguration)
-result=test.loadAapmMayo3D()
+start=time.time()
+test=DataHandler(aapmMayoConfiguration, experimentConfiguration)
+end=time.time()
 
-for value in result.values():
-    print(len(value))
+print(f"total time: {(end-start)/60} min")
+print(test.train.shape)
+print(test.validation.shape)
+
+for item in test.test:
+    print(item.shape)
 
 
 

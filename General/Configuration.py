@@ -3,7 +3,7 @@ from collections import namedtuple
 #Experiment Configuration doesn't require dataset path
 ExperimentConfiguration=namedtuple("ExperimentConfiguration",["name", "datasetPath", "projectPath", "window",
                         "patchWindowShape", "patchStep", "batchSize", "epoch"])
-LoadingConfiguration=namedtuple("LoadingConfiguration", ["name", "path", "mode", "resolution", "truncation", "trainProportion", "validationProportion"])
+LoadingConfiguration=namedtuple("LoadingConfiguration", ["path", "mode", "resolution", "resample", "trainProportion", "validationProportion"])
 UnetConfiguration=namedtuple("UnetConfiguration", ["inputChannel", "outputChannel", "block", "normalization", "upMode"])
 QueueBlockConfiguration=namedtuple("QueueBlockConfiguration", ["intermediateChannel", "depthKernel", "heightKernel", "widthKernel", "stride"])
 ParallelNetConfiguration=namedtuple("ParallelNetConfiguration", ["inputChannel", "factor", "channel", "level", "kernel", "stride"])
@@ -17,21 +17,22 @@ CompressionConfiguration=namedtuple("CompressionConfiguration", ["size", "factor
 experimentConfiguration=ExperimentConfiguration(
     #datasetPath="/content/drive/MyDrive/Code/3DSuperResolution/3D-MNIST",
     #projectPath="/content/drive/MyDrive/Code/3DSuperResolution",
+    name="test",
     datasetPath="/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data",
     projectPath="/home/weixun/3DSuperResolution",
     window=None, patchWindowShape=(64,64,64), patchStep=16, batchSize=32, epoch=500
 )
 
-loadingConfiguration=LoadingConfiguration(name="load", path="/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data",
+loadingConfiguration=LoadingConfiguration(path="/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data",
                       #path="/content/drive/MyDrive/Code/3DSuperResolution/3D-MNIST",
-                      mode="3D", resolution="HR", truncation=True, trainProportion=0.8, validationProportion=0.1)
+                      mode="3D", resolution="HR", resample=False, trainProportion=0.8, validationProportion=0.1)
 
 
 
 #Aapm Mayo Dataset Loading Configuration
 aapmMayoConfiguration=LoadingConfiguration(path="/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data",
                       #path="/content/drive/MyDrive/Code/3DSuperResolution/3D-MNIST",
-                      mode="3D", resolution="HR", truncation=True, trainProportion=0.8, validationProportion=0.1)
+                      mode="3D", resolution="HR", resample=False, trainProportion=0.8, validationProportion=0.1)
 
 #Unet Model Configuration
 unetConfiguration=UnetConfiguration(inputChannel=1, outputChannel=1, block=4, normalization=None, upMode='resizeconv_linear')
