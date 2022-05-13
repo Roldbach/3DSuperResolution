@@ -6,7 +6,7 @@ class SRDataHandler(DataHandler):
         The specific DataHandler class that could handle the data
     for super resolution tasks
     '''
-    def __init__(self, experimentConfiguraiotn=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration):
+    def __init__(self, experimentConfiguration=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration):
         super().__init__(experimentConfiguration, loadingConfiguration)
     
     def trilinearInterpolation(self, LR, factor):
