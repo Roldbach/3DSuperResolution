@@ -9,7 +9,7 @@ class SRDataHandler(DataHandler):
     def __init__(self, experimentConfiguration=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration):
         super().__init__(experimentConfiguration, loadingConfiguration)
     
-    def trilinearInterpolation(self, LR, factor):
+    def trilinearInterpolate(self, LR, factor):
         '''
             According to the configuration, construct corresponding LR
         dataset from the HR dataset
