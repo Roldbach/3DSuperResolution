@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pydicom as dicom
 
-from General.Configuration import experimentConfiguration
+from General.Configuration import aapmMayoConfiguration,experimentConfiguration
 from General.DataLoading import truncateSlice
 from General.ImageProcessing import patchExtraction2D, patchExtraction3D, windowing
 
@@ -10,14 +10,15 @@ class DataHandler:
     '''
         The class to handle various data loading and HU reconstruction
     '''
-    def __init__(self, loadingConfiguration, experimentConfiguration=experimentConfiguration):
-        self.loadingConfiguration=loadingConfiguration
+    def __init__(self, experimentConfiguration=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration):
         self.experimentConfiguration=experimentConfiguration
+        self.loadingConfiguration=loadingConfiguration
 
         self.slice=self.loadSlice()
         self.image=self.loadImage()
-        self.train, self.validation, self.test=self.splitTrainValidation()
-        self.patchExtraction()
+        self.trainKey, self.validationKey, self.testKey=self.splitTrainValidationKey()
+        #self.train, self.validation, self.test=self.splitTrainValidationImage()
+        #self.patchExtraction()
         
     def generateAapmMayoPath(self):
         '''
@@ -142,31 +143,33 @@ class DataHandler:
             result[key]=np.stack(image).astype("float32")
         return result
     
-    def splitTrainValidation(self):
+    def splitTrainValidationKey(self):
         '''
             Split the slice dataset into train, validation and test dataset
         according to the given proportions
-        
-        return:
-            train: list, contains all images in the training dataset
-            validation: list, contains all images in the validation dataset
-            test: list, contains all images in the testing dataset
         '''
         keys=tuple(self.slice.keys())
 
         trainLimit=int(len(keys)*self.loadingConfiguration.trainProportion)
-        validationLimit=int(len(keys)*self.loadingConfiguration.trainProportion)
+        validationLimit=int(len(keys)*self.loadingConfiguration.validationProportion)
         
-        keyTrain=keys[len(keys)-trainLimit:len(keys)]
-        keyValidation=keys[len(keys)-trainLimit-validationLimit:len(keys)-trainLimit]
-        keyTest=keys[:len(keys)-trainLimit-validationLimit]
+        trainKey=keys[len(keys)-trainLimit:len(keys)]
+        validationKey=keys[len(keys)-trainLimit-validationLimit:len(keys)-trainLimit]
+        testKey=keys[:len(keys)-trainLimit-validationLimit]
 
-        train=[self.image[key] for key in keyTrain]
-        validation=[self.image[key] for key in keyValidation]
-        test=[self.image[key] for key in keyTest]
+        return trainKey, validationKey, testKey
+    
+    def splitTrainValidationImage(self):
+        '''
+            Split the image dataset into train, validation and test dataset
+        according to the given proportions
+        '''
+        train=[self.image[key] for key in self.trainKey]
+        validation=[self.image[key] for key in self.validationKey]
+        test=[self.image[key] for key in self.testKey]
 
         return train, validation, test
-    
+
     def patchExtraction(self):
         '''
             Patch the train and validation according to the experiment configuration
@@ -182,8 +185,6 @@ class DataHandler:
         else:
             self.train=np.array(self.train)
             self.validation=np.array(self.validation)
-
-
 
 
 
