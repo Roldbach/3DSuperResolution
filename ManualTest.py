@@ -1,5 +1,6 @@
 import pydicom
 from Handler.DataHandler import DataHandler
+from Handler.SRDataHandler import SRDataHandler
 import numpy as np
 import time
 import torch
@@ -12,19 +13,20 @@ from General.DataPlotting import plot3DImage, plotImage
 from Model.DenseNet import DenseNet
 from General.Evaluation import superLoss
 from skimage.util import view_as_blocks
-from Train.TrainHelper import constructSetting, getBatchData
+from TrainHelper import constructSetting, getBatchData
 from torch.optim import Adam
 
 start=time.time()
-test=DataHandler(aapmMayoConfiguration, experimentConfiguration)
+test=SRDataHandler()
 end=time.time()
 
 print(f"total time: {(end-start)/60} min")
+
 print(test.train.shape)
 print(test.validation.shape)
 
-for item in test.test:
-    print(item.shape)
+result=test.getSingle(test.test, 0, torch.device("cpu"))
+print(result.shape)
 
 
 

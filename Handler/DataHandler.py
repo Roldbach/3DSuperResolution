@@ -1,24 +1,38 @@
 import numpy as np
 import os
 import pydicom as dicom
+import torch
 
 from General.Configuration import aapmMayoConfiguration,experimentConfiguration
 from General.DataLoading import truncateSlice
 from General.ImageProcessing import patchExtraction2D, patchExtraction3D, windowing
+from torch.autograd import Variable
 
 class DataHandler:
     '''
         The class to handle various data loading and HU reconstruction
     '''
     def __init__(self, experimentConfiguration=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration):
+        '''
+            This class contains following attributes:
+            (1) slice
+                a. 2D: dict, key=file path, value=corresonding dicom file
+                b. 3D: dict, key=patient name, value=tuple, contains all files
+            (2) image
+                a. 2D: dict, key=file path, value=window/normalized 2D image
+                b. 3D: dict, key=patinet name, value=window/normalized 3D image
+            (3) train/validation/test key: list, contains keys in those sub dataset
+            (4) train/validation/test: list, contains 2D/3D images in those sub dataset
+            (5) setting: namedtuple, contains the number of step required in one epoch for all sub dataset
+        '''
         self.experimentConfiguration=experimentConfiguration
         self.loadingConfiguration=loadingConfiguration
 
         self.slice=self.loadSlice()
         self.image=self.loadImage()
         self.trainKey, self.validationKey, self.testKey=self.splitTrainValidationKey()
-        #self.train, self.validation, self.test=self.splitTrainValidationImage()
-        #self.patchExtraction()
+        self.train, self.validation, self.test=self.splitTrainValidationImage()
+        self.patchExtraction()
         
     def generateAapmMayoPath(self):
         '''
@@ -148,7 +162,7 @@ class DataHandler:
             Split the slice dataset into train, validation and test dataset
         according to the given proportions
         '''
-        keys=tuple(self.slice.keys())
+        keys=list(self.slice.keys())
 
         trainLimit=int(len(keys)*self.loadingConfiguration.trainProportion)
         validationLimit=int(len(keys)*self.loadingConfiguration.validationProportion)
@@ -186,8 +200,46 @@ class DataHandler:
             self.train=np.array(self.train)
             self.validation=np.array(self.validation)
 
+    def getBatch(self, dataset, step, device):
+        '''
+            Return a batch of data from dataset 
+        and transfer to the given device
 
+        input:
+            dataset: list, contains all data used
+            step: int, the current number of experiment step
+            device: torch.device, either cpu or gpu
 
+        return:
+            result: torch.Variable, could be directly used for train/validation
+        '''
+        if (step+1)*experimentConfiguration.batchSize<=len(dataset):
+            result=dataset[step*experimentConfiguration.batchSize:(step+1)*experimentConfiguration.batchSize]
+        else:
+            result=dataset[step*experimentConfiguration.batchSize:len(dataset)]
+        result=np.expand_dims(result, axis=1)
+        result=torch.from_numpy(result).float()
+        return Variable(result, requires_grad=True).to(device)
+    
+    def getSingle(self, dataset, index, device):
+        '''
+            Return one single data from dataset and
+        transfer to the given device
+
+        input:
+            dataset: list, contains all data used
+            index: int, the index of the target
+            device: torch.device, either cpu or gpu
+        
+        return:
+            result: torch.Variable, could be directly used for test
+        '''
+        result=dataset[index]
+        for i in range(2):
+            result=np.expand_dims(result, axis=0)
+
+        result=torch.from_numpy(result).float()
+        return Variable(result, requires_grad=True).to(device)
 
 
     
