@@ -1,12 +1,10 @@
 import torch.nn as nn
 
-from General.Configuration import intermediateCNNConfiguration
-
 class IntermediateConvolution2DBlock(nn.Module):
     '''
         Standard 2D convolution layer + ReLU
     '''
-    def __init__(self, inputChannel, outputChannel, kernel=intermediateCNNConfiguration.kernel, stride=intermediateCNNConfiguration.stride):
+    def __init__(self, inputChannel, outputChannel, kernel, stride):
         super().__init__()
         self.layer=nn.Sequential(
             nn.Conv2d(inputChannel, outputChannel, kernel, stride, padding="same"),
@@ -21,16 +19,15 @@ class IntermediateCNN(nn.Module):
         The network that could upsample height/width and 
     depth separately
     '''
-    def __init__(self, mode, inputChannel=intermediateCNNConfiguration.inputChannel, channel=intermediateCNNConfiguration.channel, 
-    factor=intermediateCNNConfiguration.factor):
+    def __init__(self, mode, inputChannel, channel, factor, before, after):
         super(IntermediateCNN, self).__init__()
         self.mode=mode
         self.inputChannel=inputChannel
         self.channel=channel
         self.factor=factor
 
-        self.before=self.constructBlock(intermediateCNNConfiguration.before)
-        self.after=self.constructBlock(intermediateCNNConfiguration.after)
+        self.before=self.constructBlock(before)
+        self.after=self.constructBlock(after)
     
     def constructBlock(self, number):
         block=[]

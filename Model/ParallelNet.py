@@ -2,8 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from General.Configuration import  parallelNetConfiguration,queueBlockConfiguration
-
 class CustomizedPixelShuffle(nn.Module):
     '''
         Modify the pixel shuffle function in the source
@@ -40,7 +38,7 @@ class ParallelNetConvolution3DBlock(nn.Module):
     '''
         Standard 3D convolution layer + ReLU
     '''
-    def __init__(self, inputChannel, outputChannel, kernel=parallelNetConfiguration.kernel, stride=parallelNetConfiguration.stride):
+    def __init__(self, inputChannel, outputChannel, kernel, stride):
         super().__init__()
         self.layer=nn.Sequential(
             nn.Conv3d(inputChannel, outputChannel, kernel, stride, padding="same"),
@@ -55,11 +53,8 @@ class QueueBlock(nn.Module):
         Use standard 1-D convolution across all channels in 3 axis to
     replace a standard 3-D convolution
     '''
-    def __init__(self, inputChannel, outputChannel,
-                intermediateChannel=queueBlockConfiguration.intermediateChannel,
-                depthKernel=queueBlockConfiguration.depthKernel,
-                heightKernel=queueBlockConfiguration.heightKernel,
-                widthKernel=queueBlockConfiguration.widthKernel, stride=queueBlockConfiguration.stride):
+    def __init__(self, inputChannel, outputChannel, intermediateChannel,
+                depthKernel, heightKernel, widthKernel, stride):
         super(QueueBlock, self).__init__()
         self.depthKernel=(depthKernel,1,1)
         self.heightKernel=(1,heightKernel,1)
@@ -81,8 +76,7 @@ class ParallelNet(nn.Module):
     '''
         Parallel net backbone with standard 3D convolution layer
     '''
-    def __init__(self, inputChannel=parallelNetConfiguration.inputChannel, channel=parallelNetConfiguration.channel,
-    level=parallelNetConfiguration.level, factor=parallelNetConfiguration.factor):
+    def __init__(self, inputChannel, channel, level, factor, kernel, stride):
         super(ParallelNet, self).__init__()
         self.inputChannel=inputChannel
         self.channel=channel
@@ -101,7 +95,7 @@ class ParallelNet(nn.Module):
             self.block[f"{i} {0}"]=ParallelNetConvolution3DBlock(self.channel*sum([j for j in range(i)]), self.channel*i)
         self.block=nn.ModuleDict(self.block)
 
-        self.outputLayer=nn.Conv3d(self.channel*sum([i for i in range(1,self.level+1)]), np.power(self.factor, 3), parallelNetConfiguration.kernel, parallelNetConfiguration.stride, "same")
+        self.outputLayer=nn.Conv3d(self.channel*sum([i for i in range(1,self.level+1)]), np.power(self.factor, 3), kernel, stride, "same")
         self.shuffle=CustomizedPixelShuffle(self.factor)
     
     def forward(self, input):

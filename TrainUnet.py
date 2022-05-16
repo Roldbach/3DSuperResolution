@@ -1,30 +1,25 @@
 import time
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as functional
 
-from General.Configuration import compressionConfiguration, experimentConfiguration, optimizerConfiguration, unetConfiguration
-from General.DataLoading import loadHRPatch, loadLoss, loadModel
-from General.DataPlotting import plotImage, plotLoss
-from General.DataWriting import saveSRExperiment, saveLoss, saveModel, save3DImage
-from General.Evaluation import evaluatePrediction
+from General.Configuration import AdamConfiguration, DownsampleConfiguration, ExperimentConfiguration, LoadingConfiguration, UnetConfiguration, UpsampleConfiguration
+from General.DataLoading import loadLoss, loadModel
+from General.DataWriting import saveExperiment, saveLoss, saveModel
 from Handler.SRDataHandler import SRDataHandler
 from torch.optim import Adam
-from TrainHelper import constructLoss, constructSetting, countEpoch, getBatchData, getSingleData
+from Helper.TrainHelper import constructLoss, constructPath, constructSetting, countEpoch
 from Model.UNet import UNet
 
-def constructModel(device, device_ids=None, inputChannel=unetConfiguration.inputChannel, outputChannel=unetConfiguration.outputChannel,
-                    block=unetConfiguration.block, normalization=unetConfiguration.normalization, upMode=unetConfiguration.upMode):
+def constructModel(unetConfiguration, optimizerConfiguration, device, device_ids=None):
     model=UNet(
-        in_channels=inputChannel,
-        out_channels=outputChannel,
-        n_blocks=block,
-        normalization=normalization,
-        up_mode=upMode
+        in_channels=unetConfiguration.inputChannel,
+        out_channels=unetConfiguration.outputChannel,
+        n_blocks=unetConfiguration.block,
+        normalization=unetConfiguration.normalization,
+        up_mode=unetConfiguration.upMode
     )
     model=model.to(device)
-    optimizer=Adam(model.parameters(), optimizerConfiguration.learningRate, optimizerConfiguration.beta)
+    optimizer=Adam(model.parameters(), optimizerConfiguration.rate, optimizerConfiguration.beta)
     
     if device_ids!=None:
         model=nn.DataParallel(model, device_ids)
@@ -64,44 +59,34 @@ def validateBatch(HR, model, loss, step, device):
     validationLossBatch=loss(HRBatch, HRPrediction)
     validationLossTotal+=validationLossBatch.item()
 
-def predict(HR, model, device, name, saveResult=1, factor=compressionConfiguration.factor, interpolation=compressionConfiguration.interpolation):
-    '''
-        Return predictions and save results for the given number
-    '''
-    prediction=[]
+#-----Configuration-----#
+experimentConfiguration=ExperimentConfiguration(
+    #projectPath="/content/drive/MyDrive/Code/3DSuperResolution",
+    name="3DUnetPatch",
+    projectPath="/home/weixun/3DSuperResolution",
+    window=None, patchWindowShape=(64,64,64), patchStep=None, batchSize=16, epoch=500
+)
+aapmMayoConfiguration=LoadingConfiguration(path="/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data",
+                      #path="/content/drive/MyDrive/Code/3DSuperResolution/3D-MNIST",
+                      mode="3D", resolution="HR", resample=False, trainProportion=0.8, validationProportion=0.1)
+downsampleConfiguration=DownsampleConfiguration(name="interval", factor=8)
 
-    with torch.no_grad():
-        model.eval()
-        for i in range(setting.testStep):
-            HRBatch=getSingleData(HR, i, device).unsqueeze(dim=1)
-            LRBatch=HRBatch[:,:,::factor,:,:]
-            LRBatch=functional.interpolate(LRBatch, scale_factor=(factor,1,1), mode=interpolation)
+upsampleConfiguration=UpsampleConfiguration(name="trilinear interpolation", factor=(8,1,1))
 
-            LRPrediction=model(LRBatch)
-            LRPrediction=LRPrediction[0,0,:,:,:].cpu().detach().numpy()
-            prediction.append(LRPrediction)
+unetConfiguration=UnetConfiguration(inputChannel=1, outputChannel=1, block=4, normalization=None, upMode='resizeconv_linear')
 
-            if i<saveResult:
-                LRBatch=LRBatch[0,0,:,:,:].cpu().detach().numpy()
-                save3DImage(LRBatch, name+f" LR {i}")
-                save3DImage(HR[i], name+f" HR {i}")
-                save3DImage(prediction[i], name+f" Prediction {i}")
-
-                plotImage(LRBatch[:,:,100], name+f" LR {i}")
-                plotImage(HR[i][:,:,100], name+f" HR {i}")
-                plotImage(prediction[i][:,:,100], name+f" Prediction {i}")
-    
-    return prediction
+adamConfiguration=AdamConfiguration(rate=0.00001, beta=(0.9, 0.99))
+#-----------------------#
 
 loading=False
-
-HR=SRDataHandler()
-setting=constructSetting(HR.train.shape[0], HR.validation.shape[0], len(HR.test))
+HR=SRDataHandler(experimentConfiguration, aapmMayoConfiguration, downsampleConfiguration, upsampleConfiguration)
+setting=constructSetting(HR.train.shape[0], HR.validation.shape[0], len(HR.test), experimentConfiguration.batchSize)
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device_ids=None
-model, optimizer=constructModel(device, device_ids)
+device_ids=[0,1,2,3]
+model, optimizer=constructModel(unetConfiguration, adamConfiguration, device, device_ids)
 loss=nn.MSELoss().to(device)
 trainLoss, validationLoss=constructLoss()
+savePath=constructPath(experimentConfiguration.name, experimentConfiguration.projectPath)
 
 if loading:
     loadModel(model, experimentConfiguration.name, device_ids=device_ids)
@@ -124,15 +109,10 @@ for i in range(experimentConfiguration.epoch):
         validationLoss.append(validationLossTotal/setting.validationStep)
     
     end=time.time()
-    saveModel(model, experimentConfiguration.name, device_ids=device_ids)
-    saveLoss(trainLoss[-1], validationLoss[-1], experimentConfiguration.name)
-    print('Epoch : ',countEpoch(experimentConfiguration.name), '\t', 'train loss: ',trainLoss[-1], '\t', "val loss: ", validationLoss[-1], 'time: ',end-start,"s")
+    saveModel(model, "model", savePath, device_ids=device_ids)
+    saveLoss(trainLoss[-1], validationLoss[-1], "loss", savePath)
+    print('Epoch : ',countEpoch("loss", savePath), '\t', 'train loss: ',trainLoss[-1], '\t', "val loss: ", validationLoss[-1], 'time: ',end-start,"s")
     torch.cuda.empty_cache()
 
-    break
-
-#prediction=predict(HR["test"], model, device, name, saveResult=1)
-#plotLoss(trainLoss, validationLoss, name)
-#evaluatePrediction(prediction, HR["test"], name)
-#saveSRExperiment(name, unetConfiguration)
+saveExperiment("Configuration", savePath, experimentConfiguration, aapmMayoConfiguration, downsampleConfiguration, upsampleConfiguration, unetConfiguration, adamConfiguration)
 

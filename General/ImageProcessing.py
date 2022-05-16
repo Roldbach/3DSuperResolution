@@ -1,9 +1,8 @@
 import numpy as np
 
-from General.Configuration import experimentConfiguration
 from skimage.util import view_as_blocks, view_as_windows
 
-def windowing(file,window=experimentConfiguration.window):
+def windowing(file,window):
     '''
         Apply windowing to the image so the values are within the window range
     and normalized
@@ -34,7 +33,7 @@ def windowing(file,window=experimentConfiguration.window):
         min=np.amin(image)
         return (image-min)/(max-min)
 
-def patchExtraction2D(dataset, windowShape=experimentConfiguration.patchWindowShape, step=experimentConfiguration.patchStep):
+def patchExtraction2D(dataset, windowShape, step):
     result=[]
     for image in dataset:
         patch=view_as_windows(image, windowShape, step)
@@ -43,7 +42,7 @@ def patchExtraction2D(dataset, windowShape=experimentConfiguration.patchWindowSh
                 result.append(patch[i][j])
     return result
 
-def patchExtraction3D(dataset, windowShape=experimentConfiguration.patchWindowShape):
+def patchExtraction3D(dataset, windowShape):
     result=[]
     for i in range(len(dataset)):
         template=view_as_blocks(dataset[i], windowShape)

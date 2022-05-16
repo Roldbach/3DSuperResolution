@@ -3,8 +3,6 @@ import os
 import pydicom as dicom
 import torch
 
-from General.Configuration import aapmMayoConfiguration,experimentConfiguration
-from General.DataLoading import truncateSlice
 from General.ImageProcessing import patchExtraction2D, patchExtraction3D, windowing
 from torch.autograd import Variable
 
@@ -12,7 +10,7 @@ class DataHandler:
     '''
         The class to handle various data loading and HU reconstruction
     '''
-    def __init__(self, experimentConfiguration=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration):
+    def __init__(self, experimentConfiguration, loadingConfiguration):
         '''
             This class contains following attributes:
             (1) slice
@@ -62,6 +60,28 @@ class DataHandler:
             with open(self.experimentConfiguration.projectPath+"/"+"AapmMayo"+"/"+name, "w") as file:
                 for line in content:
                     file.write(line+"\n")
+    
+        #Unfinished Function
+    def generateOSICPath(self,datasetPath):
+        image=[]
+
+        patient=self.filterPath(datasetPath, ".7z")
+        for path in patient:
+            patientID=self.filterPath(datasetPath+"/"+path, ".csv", ".txt")
+            imagePath=[datasetPath+"/"+path+"/"+element+"/0" for element in patientID]
+            imagePath.sort()
+            for element in imagePath:
+                break
+
+    def filterPath(self, path, *target):
+        '''
+        Load files from the given path and filter out
+        files whose name contains the target
+        '''
+        result=sorted(os.listdir(path))
+        for item in target:
+            result=[element for element in result if item not in element]
+        return result
 
     def loadSlice(self):
         '''
@@ -116,10 +136,25 @@ class DataHandler:
             with open(patient, "r") as file:
                 content=file.readlines()
             contentStrip=tuple(sorted((line.strip("\n") for line in content)))
-            contentTruncate=truncateSlice(contentStrip, self.experimentConfiguration.patchWindowShape[0])
+            contentTruncate=self.truncateSlice(contentStrip, self.experimentConfiguration.patchWindowShape[0])
             result[patient]=[dicom.read_file(slice) for slice in contentTruncate]
         
         return result
+
+    def truncateSlice(self, slice, depth):
+        '''
+            Truncate the slice in z-axis to allow non-overlapping voxel patch
+        extraction
+
+            If the window is not given, simply return all slices
+        '''
+        try:
+            truncateTotal=len(slice)%depth
+            truncateStart=int(truncateTotal/2)
+            truncateEnd=truncateTotal-truncateStart
+            return slice[truncateStart:len(slice)-truncateEnd]
+        except:
+            return slice
 
     def loadImage(self):
         '''
@@ -153,7 +188,7 @@ class DataHandler:
         '''
         result={}
         for key, value in self.slice.items():
-            image=[windowing(file) for file in value]
+            image=[windowing(file, self.experimentConfiguration.window) for file in value]
             result[key]=np.stack(image).astype("float32")
         return result
     
@@ -213,10 +248,10 @@ class DataHandler:
         return:
             result: torch.Variable, could be directly used for train/validation
         '''
-        if (step+1)*experimentConfiguration.batchSize<=len(dataset):
-            result=dataset[step*experimentConfiguration.batchSize:(step+1)*experimentConfiguration.batchSize]
+        if (step+1)*self.experimentConfiguration.batchSize<=len(dataset):
+            result=dataset[step*self.experimentConfiguration.batchSize:(step+1)*self.experimentConfiguration.batchSize]
         else:
-            result=dataset[step*experimentConfiguration.batchSize:len(dataset)]
+            result=dataset[step*self.experimentConfiguration.batchSize:len(dataset)]
         result=np.expand_dims(result, axis=1)
         result=torch.from_numpy(result).float()
         return Variable(result, requires_grad=True).to(device)

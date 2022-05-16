@@ -1,6 +1,5 @@
 import torch.nn.functional as functional
 
-from General.Configuration import aapmMayoConfiguration, downsampleConfiguration, experimentConfiguration, upsampleConfiguration
 from Handler.DataHandler import DataHandler
 
 class SRDataHandler(DataHandler):
@@ -8,8 +7,7 @@ class SRDataHandler(DataHandler):
         The specific DataHandler class that could handle the data
     for super resolution tasks
     '''
-    def __init__(self, experimentConfiguration=experimentConfiguration, loadingConfiguration=aapmMayoConfiguration,
-                downsampleConfiguration=downsampleConfiguration, upsampleConfiguration=upsampleConfiguration):
+    def __init__(self, experimentConfiguration, loadingConfiguration, downsampleConfiguration, upsampleConfiguration):
         super().__init__(experimentConfiguration, loadingConfiguration)
         self.downsampleConfiguration=downsampleConfiguration
         self.upsampleConfiguration=upsampleConfiguration
@@ -42,7 +40,7 @@ class SRDataHandler(DataHandler):
             The following method could be chosen:
             (1) trilinear interpolation: this could only work for 5D torch.tensor
         '''
-        if self.upsampleConfiguration.name=="trilinear":
+        if self.upsampleConfiguration.name=="trilinear interpolation":
             return self.trilinearInterpolation(data, self.upsampleConfiguration.factor, device)
 
     def trilinearInterpolation(self, data, factor, device):

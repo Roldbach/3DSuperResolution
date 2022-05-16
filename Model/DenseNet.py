@@ -1,13 +1,11 @@
 import torch
 import torch.nn as nn
 
-from General.Configuration import denseNetConfiguraiton
-
 class DenseNetConvolution3DBlock(nn.Module):
     '''
         Standard 3D convolution layer + LeakyRelu + BatchNorm
     '''
-    def __init__(self, inputChannel, outputChannel=denseNetConfiguraiton.channel, kernel=denseNetConfiguraiton.kernel, stride=denseNetConfiguraiton.stride):
+    def __init__(self, inputChannel, outputChannel, kernel, stride):
         super().__init__()
         self.layer=nn.Sequential(
             nn.Conv3d(inputChannel, outputChannel, kernel, stride, padding="same"),
@@ -22,7 +20,7 @@ class DenseNet(nn.Module):
     '''
         Dense net backbone with standard 3D convolution
     '''
-    def __init__(self, inputChannel=denseNetConfiguraiton.inputChannel, channel=denseNetConfiguraiton.channel, level=denseNetConfiguraiton.level):
+    def __init__(self, inputChannel, channel, level):
         super(DenseNet, self).__init__()
         self.channel=channel
         self.level=level

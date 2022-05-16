@@ -1,0 +1,6 @@
+Experiment:name	3DUnetPatch	projectPath	/home/weixun/3DSuperResolution	window	None	patchWindowShape	(64, 64, 64)	patchStep	None	batchSize	1	epoch	500	
+Loading:path	/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data	mode	3D	resolution	HR	resample	False	trainProportion	0.8	validationProportion	0.1	
+Downsample:name	interval	factor	8	
+Upsample:name	trilinear interpolation	factor	(8, 1, 1)	
+Unet:inputChannel	1	outputChannel	1	block	4	normalization	None	upMode	resizeconv_linear	
+Adam:rate	1e-05	beta	(0.9, 0.99)	

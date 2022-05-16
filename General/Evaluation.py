@@ -1,7 +1,6 @@
 import numpy as np
 
-from General.Configuration import experimentConfiguration
-from General.DataWriting import saveData
+from General.DataWriting import savePerformance
 from math import sqrt
 from skimage.metrics import mean_squared_error as MSE
 from skimage.metrics import peak_signal_noise_ratio as PSNR
@@ -20,7 +19,7 @@ def superLoss(prediction, target, mode="psnr",data_range=255):
     else:
         return SSIM(prediction,target,data_range=data_range)
 
-def evaluatePrediction(prediction, target, name, path=experimentConfiguration.projectPath+"/Data"):
+def evaluatePrediction(prediction, target, name, path):
     '''
         Evaluate every prediction through RMSE, PSNR, SSIM with respect to the target
     in the 0~255 scale, save and report those results
@@ -38,9 +37,9 @@ def evaluatePrediction(prediction, target, name, path=experimentConfiguration.pr
         psnr.append(superLoss((prediction[i]*255).astype("uint8"),(target[i]*255).astype("uint8"),mode="psnr")) 
         ssim.append(superLoss((prediction[i]*255).astype("uint8"),(target[i]*255).astype("uint8"),mode="ssim")) 
 
-    saveData(rmse, name+" rmse", path)
-    saveData(psnr, name+" psnr", path)
-    saveData(ssim, name+" ssim", path)
+    savePerformance(rmse, name+" rmse", path)
+    savePerformance(psnr, name+" psnr", path)
+    savePerformance(ssim, name+" ssim", path)
 
     print("The mean psnr is: ",np.mean(psnr))
     print("The std psnr is: ",np.std(psnr))

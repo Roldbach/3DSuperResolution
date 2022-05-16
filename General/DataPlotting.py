@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 
-from General.Configuration import experimentConfiguration
-
-def plotLoss(trainLoss, validationLoss, name, path=experimentConfiguration.projectPath+"/Plot"):
+def plotLoss(trainLoss, validationLoss, name, path):
     epoch=[i+1 for i in range(len(trainLoss))]
     figure=plt.figure(dpi=300)
     plt.plot(epoch, trainLoss, label="Training Loss")
@@ -14,7 +12,7 @@ def plotLoss(trainLoss, validationLoss, name, path=experimentConfiguration.proje
     plt.show()
     figure.savefig(path+"/"+name+".png")
 
-def plotImage(image, name, path=experimentConfiguration.projectPath+"/Plot"):
+def plotImage(image, name, path):
     figure=plt.figure(dpi=300)
     plt.grid(False)
     plt.axis("off")

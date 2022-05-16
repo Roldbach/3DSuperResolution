@@ -2,24 +2,22 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from General.Configuration import compressionConfiguration, experimentConfiguration, loadingConfiguration, optimizerConfiguration
-
-def saveData(data, name, path=experimentConfiguration.projectPath+"/Data"):
+def savePerformance(data, name, path):
     with open(path+"/"+name+".txt", "w") as file:
         for value in data:
             file.write(str(value)+"\n")
 
-def saveModel(model, name, path=experimentConfiguration.projectPath+"/SavedModel", device_ids=None):
+def saveModel(model, name, path, device_ids=None):
     if device_ids is None:
         torch.save(model.state_dict(), path+"/"+name+".pth")
     else:
         torch.save(model.module.state_dict(), path+"/"+name+".pth")
 
-def saveLoss(trainLoss, validationLoss, name, path=experimentConfiguration.projectPath+"/Loss"):
+def saveLoss(trainLoss, validationLoss, name, path):
     with open(path+"/"+name+".txt", "a") as file:
         file.write(f"train:{trainLoss},validation:{validationLoss}\n")
 
-def save3DImage(image, name, path=experimentConfiguration.projectPath+"/Result"):
+def save3DImage(image, name, path):
     affine = np.array([[0.,  0.,  1., -0.],
         [ 0., -1.,  0., -0.],
         [ -1.,  0.,  0.,  0.],
@@ -27,14 +25,10 @@ def save3DImage(image, name, path=experimentConfiguration.projectPath+"/Result")
     imageNil=nib.Nifti1Image(image, affine)
     nib.save(imageNil, path+"/"+name+".nii")
 
-def saveSRExperiment(name, modelConfiguration, experimentConfiguration=experimentConfiguration, loadingConfiguration=loadingConfiguration,
-                    compressionConfiguration=compressionConfiguration,optimizerConfiguration=optimizerConfiguration, path=experimentConfiguration.projectPath+"/SavedConfiguration"):
+def saveExperiment(name,path, *configuration):
     with open(path+"/"+name+".txt", "w") as file:
-        file.write(saveConfiguration(type(modelConfiguration).__name__[:-13], modelConfiguration))
-        file.write(saveConfiguration(type(experimentConfiguration).__name__[:-13], experimentConfiguration))
-        file.write(saveConfiguration(type(loadingConfiguration).__name__[:-13], loadingConfiguration))
-        file.write(saveConfiguration(type(compressionConfiguration).__name__[:-13], compressionConfiguration))
-        file.write(saveConfiguration(type(optimizerConfiguration).__name__[:-13], optimizerConfiguration))
+        for item in configuration:
+            file.write(saveConfiguration(type(item).__name__[:-13], item))
     
 def saveConfiguration(subName, configuration):
     ''' 
