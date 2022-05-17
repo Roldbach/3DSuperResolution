@@ -2,6 +2,11 @@ import nibabel as nib
 import numpy as np
 import torch
 
+def saveDescription(content, name, path):
+    with open(path+"/"+name+".txt", "w") as file:
+        for line in content:
+            file.write(line+"\n")
+
 def savePerformance(data, name, path):
     with open(path+"/"+name+".txt", "w") as file:
         for value in data:

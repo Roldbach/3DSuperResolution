@@ -13,15 +13,17 @@ class DataHandler:
     def __init__(self, experimentConfiguration, loadingConfiguration):
         '''
             This class contains following attributes:
-            (1) slice
+            (1) experimentConfiguration: namedtuple
+            (2) loadingConfiguration: namedtuple
+            (3) slice
                 a. 2D: dict, key=file path, value=corresonding dicom file
                 b. 3D: dict, key=patient name, value=tuple, contains all files
-            (2) image
+            (4) image
                 a. 2D: dict, key=file path, value=window/normalized 2D image
                 b. 3D: dict, key=patinet name, value=window/normalized 3D image
-            (3) train/validation/test key: list, contains keys in those sub dataset
-            (4) train/validation/test: list, contains 2D/3D images in those sub dataset
-            (5) setting: namedtuple, contains the number of step required in one epoch for all sub dataset
+            (5) train/validation/test key: list, contains keys in those sub dataset
+            (6) train/validation/test: list, contains 2D/3D images in those sub dataset
+            (7) setting: namedtuple, contains the number of step required in one epoch for all sub dataset
         '''
         self.experimentConfiguration=experimentConfiguration
         self.loadingConfiguration=loadingConfiguration

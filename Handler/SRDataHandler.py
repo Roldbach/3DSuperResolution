@@ -8,6 +8,11 @@ class SRDataHandler(DataHandler):
     for super resolution tasks
     '''
     def __init__(self, experimentConfiguration, loadingConfiguration, downsampleConfiguration, upsampleConfiguration):
+        '''
+            This class contains following attributes:
+            (1) downsampleConfiguration: namedtuple
+            (2) upsampleConfiguration: namedtuple
+        '''
         super().__init__(experimentConfiguration, loadingConfiguration)
         self.downsampleConfiguration=downsampleConfiguration
         self.upsampleConfiguration=upsampleConfiguration

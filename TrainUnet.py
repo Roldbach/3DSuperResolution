@@ -4,29 +4,11 @@ import torch.nn as nn
 
 from General.Configuration import AdamConfiguration, DownsampleConfiguration, ExperimentConfiguration, LoadingConfiguration, UnetConfiguration, UpsampleConfiguration
 from General.DataLoading import loadLoss, loadModel
-from General.DataWriting import saveExperiment, saveLoss, saveModel
+from General.DataWriting import saveDescription, saveExperiment, saveLoss, saveModel
+from Handler.ExperimentHandler import ExperimentHandler
+from Handler.ModelHandler import ModelHandler
 from Handler.SRDataHandler import SRDataHandler
-from torch.optim import Adam
-from Helper.TrainHelper import constructLoss, constructPath, constructSetting, countEpoch
-from Model.UNet import UNet
-
-def constructModel(unetConfiguration, optimizerConfiguration, device, device_ids=None):
-    model=UNet(
-        in_channels=unetConfiguration.inputChannel,
-        out_channels=unetConfiguration.outputChannel,
-        n_blocks=unetConfiguration.block,
-        normalization=unetConfiguration.normalization,
-        up_mode=unetConfiguration.upMode
-    )
-    model=model.to(device)
-    optimizer=Adam(model.parameters(), optimizerConfiguration.rate, optimizerConfiguration.beta)
-    
-    if device_ids!=None:
-        model=nn.DataParallel(model, device_ids)
-        optimizer=nn.DataParallel(optimizer, device_ids)
-        optimizer=optimizer.to(device)
-    
-    return model, optimizer
+from Helper.TrainHelper import cleanResult, countEpoch
 
 def trainBatch(HR, model, optimizer, loss, step, device, device_ids=None): 
     global trainLossTotal
@@ -62,9 +44,12 @@ def validateBatch(HR, model, loss, step, device):
 #-----Configuration-----#
 experimentConfiguration=ExperimentConfiguration(
     #projectPath="/content/drive/MyDrive/Code/3DSuperResolution",
-    name="3DUnetPatch",
+    name="3DUnetPatch128",
+    mode="load",
+    device_ids=[0,1,2,3],
     projectPath="/home/weixun/3DSuperResolution",
-    window=None, patchWindowShape=(64,64,64), patchStep=None, batchSize=16, epoch=500
+    window=None, patchWindowShape=(64,128,128), patchStep=None,
+    batchSize=32, epoch=500, loss="L2"
 )
 aapmMayoConfiguration=LoadingConfiguration(path="/media/NAS01/Aapm-Mayo/LDCT-and-Projection-data",
                       #path="/content/drive/MyDrive/Code/3DSuperResolution/3D-MNIST",
@@ -78,19 +63,28 @@ unetConfiguration=UnetConfiguration(inputChannel=1, outputChannel=1, block=4, no
 adamConfiguration=AdamConfiguration(rate=0.00001, beta=(0.9, 0.99))
 #-----------------------#
 
-loading=False
-HR=SRDataHandler(experimentConfiguration, aapmMayoConfiguration, downsampleConfiguration, upsampleConfiguration)
-setting=constructSetting(HR.train.shape[0], HR.validation.shape[0], len(HR.test), experimentConfiguration.batchSize)
-device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device_ids=[0,1,2,3]
-model, optimizer=constructModel(unetConfiguration, adamConfiguration, device, device_ids)
-loss=nn.MSELoss().to(device)
-trainLoss, validationLoss=constructLoss()
-savePath=constructPath(experimentConfiguration.name, experimentConfiguration.projectPath)
+#-----Description-----#
+description=[
+    "This experiment is to test the performance of increasing the patch size to (64,128,128)."
+]
+#---------------------#
 
-if loading:
-    loadModel(model, experimentConfiguration.name, device_ids=device_ids)
-    trainLoss, validationLoss=loadLoss(experimentConfiguration.name)
+experimentHandler=ExperimentHandler(experimentConfiguration)
+modelHandler=ModelHandler(unetConfiguration, adamConfiguration)
+HR=SRDataHandler(experimentConfiguration, aapmMayoConfiguration, downsampleConfiguration, upsampleConfiguration)
+
+device=experimentHandler.constructDevice()
+setting=experimentHandler.constructSetting(HR.train.shape[0], HR.validation.shape[0], len(HR.test))
+loss=experimentHandler.constructLoss(device)
+resultPath=experimentHandler.constructResultPath(experimentConfiguration.name, experimentConfiguration.projectPath)
+model, optimizer=modelHandler.constructModelOptimizerPair(device, experimentConfiguration.device_ids)
+trainLoss, validationLoss=[],[]
+
+if experimentConfiguration.mode=="load":
+    loadModel(model, "model", resultPath, device_ids=experimentConfiguration.device_ids)
+    trainLoss, validationLoss=loadLoss("loss", resultPath)
+else:
+    cleanResult(resultPath)
 
 for i in range(experimentConfiguration.epoch):
     start=time.time()
@@ -99,7 +93,7 @@ for i in range(experimentConfiguration.epoch):
 
     model.train()
     for j in range(setting.trainStep):
-        trainBatch(HR, model, optimizer, loss, j, device, device_ids)
+        trainBatch(HR, model, optimizer, loss, j, device, experimentConfiguration.device_ids)
     trainLoss.append(trainLossTotal/setting.trainStep)
     
     with torch.no_grad():
@@ -109,10 +103,11 @@ for i in range(experimentConfiguration.epoch):
         validationLoss.append(validationLossTotal/setting.validationStep)
     
     end=time.time()
-    saveModel(model, "model", savePath, device_ids=device_ids)
-    saveLoss(trainLoss[-1], validationLoss[-1], "loss", savePath)
-    print('Epoch : ',countEpoch("loss", savePath), '\t', 'train loss: ',trainLoss[-1], '\t', "val loss: ", validationLoss[-1], 'time: ',end-start,"s")
+    saveModel(model, "model", resultPath, device_ids=experimentConfiguration.device_ids)
+    saveLoss(trainLoss[-1], validationLoss[-1], "loss", resultPath)
+    print('Epoch : ',countEpoch("loss", resultPath), '\t', 'train loss: ',trainLoss[-1], '\t', "val loss: ", validationLoss[-1], 'time: ',end-start,"s")
     torch.cuda.empty_cache()
 
-saveExperiment("Configuration", savePath, experimentConfiguration, aapmMayoConfiguration, downsampleConfiguration, upsampleConfiguration, unetConfiguration, adamConfiguration)
+saveDescription(description, "Description", resultPath)
+saveExperiment("Configuration", resultPath, experimentConfiguration, aapmMayoConfiguration, downsampleConfiguration, upsampleConfiguration, unetConfiguration, adamConfiguration)
 

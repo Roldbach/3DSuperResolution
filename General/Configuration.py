@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-ExperimentConfiguration=namedtuple("ExperimentConfiguration",["name", "projectPath", "window", "patchWindowShape", "patchStep", "batchSize", "epoch"])
+ExperimentConfiguration=namedtuple("ExperimentConfiguration",["name", "device_ids", "mode", "projectPath", "window", "patchWindowShape", "patchStep", "batchSize", "epoch", "loss"])
 LoadingConfiguration=namedtuple("LoadingConfiguration", ["path", "mode", "resolution", "resample", "trainProportion", "validationProportion"])
 DownsampleConfiguration=namedtuple("DownsampleConfiguration", ["name", "factor"])
 UpsampleConfiguration=namedtuple("UpsampleConfiguration", ["name", "factor"])
