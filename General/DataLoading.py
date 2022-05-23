@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from General.Configuration import AdamConfiguration, DownsampleConfiguration, ExperimentConfiguration, LoadingConfiguration, UnetConfiguration, UpsampleConfiguration 
+from General.Configuration import AdamConfiguration, DownsampleConfiguration, ExperimentConfiguration, LoadingConfiguration, UNetConfiguration, UpsampleConfiguration 
 from scipy import ndimage
 
 def resample(image, slice, newSpacing=[1,1,1]):
@@ -45,7 +45,7 @@ def loadLoss(name, path):
     except:
         print("Can't open loss text file.")
 
-def loadModel(model, name, path, device_ids):
+def loadModel(model, name, path, device_ids=None):
     if device_ids!=None:
         model.module.load_state_dict(torch.load(path+"/"+name+".pth"))
     else:
@@ -79,8 +79,9 @@ def constructConfiguration(name, content):
         content: dict, contains all information with corresponding keys
     '''
     if name=="Experiment":
-        return ExperimentConfiguration(name=content["name"], projectPath=content["projectPath"], window=content["window"], patchWindowShape=content["patchWindowShape"],
-                                        patchStep=content["patchStep"], batchSize=content["batchSize"], epoch=content["epoch"])
+        return ExperimentConfiguration(name=content["name"], mode=content["mode"], projectPath=content["projectPath"],
+                                    window=content["window"], patchWindowShape=content["patchWindowShape"], patchStep=content["patchStep"],
+                                    batchSize=content["batchSize"], epoch=content["epoch"], loss=content["loss"])
     elif name=="Loading":
         return LoadingConfiguration(path=content["path"], mode=content["mode"], resolution=content["resolution"],
                                     resample=content["resample"], trainProportion=content["trainProportion"], validationProportion=content["validationProportion"])
@@ -88,8 +89,8 @@ def constructConfiguration(name, content):
         return DownsampleConfiguration(name=content["name"], factor=content["factor"])
     elif name=="Upsample":
         return UpsampleConfiguration(name=content["name"], factor=content["factor"])
-    elif name=="Unet":
-        return UnetConfiguration(inputChannel=content["inputChannel"], outputChannel=content["outputChannel"], block=content["block"],
+    elif name=="UNet":
+        return UNetConfiguration(inputChannel=content["inputChannel"], outputChannel=content["outputChannel"], block=content["block"],
                                 normalization=content["normalization"], upMode=content["upMode"])
     elif name=="Adam":
         return AdamConfiguration(rate=content["rate"], beta=content["beta"])            

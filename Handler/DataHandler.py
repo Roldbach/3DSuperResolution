@@ -1,9 +1,10 @@
+import cv2
 import numpy as np
 import os
 import pydicom as dicom
 import torch
 
-from General.ImageProcessing import patchExtraction2D, patchExtraction3D, windowing
+from General.ImageProcessing import patchExtraction2D, patchExtraction3D, patchReconstruction3D, windowing
 from torch.autograd import Variable
 
 class DataHandler:
@@ -16,23 +17,15 @@ class DataHandler:
             (1) experimentConfiguration: namedtuple
             (2) loadingConfiguration: namedtuple
             (3) slice
-                a. 2D: dict, key=file path, value=corresonding dicom file
-                b. 3D: dict, key=patient name, value=tuple, contains all files
-            (4) image
-                a. 2D: dict, key=file path, value=window/normalized 2D image
-                b. 3D: dict, key=patinet name, value=window/normalized 3D image
-            (5) train/validation/test key: list, contains keys in those sub dataset
-            (6) train/validation/test: list, contains 2D/3D images in those sub dataset
-            (7) setting: namedtuple, contains the number of step required in one epoch for all sub dataset
+                a. 2D: dict, key=file path, value=file path
+                b. 3D: dict, key=patient name, value=tuple, contains all file paths
+            (4) train/validation/test key: list, contains keys in those sub dataset
         '''
         self.experimentConfiguration=experimentConfiguration
         self.loadingConfiguration=loadingConfiguration
 
         self.slice=self.loadSlice()
-        self.image=self.loadImage()
         self.trainKey, self.validationKey, self.testKey=self.splitTrainValidationKey()
-        self.train, self.validation, self.test=self.splitTrainValidationImage()
-        self.patchExtraction()
         
     def generateAapmMayoPath(self):
         '''
@@ -106,7 +99,7 @@ class DataHandler:
             In this mode, files from different patients are stored together
         
         return:
-            result: dict, key=file path, value=corresponding dicom file
+            result: dict, key=file path, value=file path
         '''
         result={}
         patientAll=tuple(sorted((self.experimentConfiguration.projectPath+"/"+"AapmMayo"+"/"+patient for patient in os.listdir(self.experimentConfiguration.projectPath+"/"+"AapmMayo")
@@ -116,7 +109,7 @@ class DataHandler:
             with open(patient, "r") as file:
                 content=file.readlines()
             for line in content:
-                result[line.strip("\n")]=dicom.read_file(line.strip("\n"))
+                result[line.strip("\n")]=line.strip("\n")
         
         return result
     
@@ -128,7 +121,7 @@ class DataHandler:
             In this mode, files within the same folder are stored together
         
         return:
-            result: dict, key=patient name, value=tuple, contains all dicom files
+            result: dict, key=patient name, value=tuple, contains all file paths
         '''
         result={}
         patientAll=tuple(sorted((self.experimentConfiguration.projectPath+"/"+"AapmMayo"+"/"+patient for patient in os.listdir(self.experimentConfiguration.projectPath+"/"+"AapmMayo")
@@ -139,7 +132,7 @@ class DataHandler:
                 content=file.readlines()
             contentStrip=tuple(sorted((line.strip("\n") for line in content)))
             contentTruncate=self.truncateSlice(contentStrip, self.experimentConfiguration.patchWindowShape[0])
-            result[patient]=[dicom.read_file(slice) for slice in contentTruncate]
+            result[patient]=contentTruncate
         
         return result
 
@@ -158,42 +151,6 @@ class DataHandler:
         except:
             return slice
 
-    def loadImage(self):
-        '''
-            Load image dataset according to the loading configuration
-        '''
-        if self.loadingConfiguration.mode=="2D":
-            return self.loadImage2D()
-        else:
-            return self.loadImage3D()
-
-    def loadImage2D(self):
-        '''
-            Load images under 2D mode and apply
-        windowing to each of them
-
-        return:
-            result: dict, key=file path, value=2-D image
-        '''
-        result={}
-        for key, value in self.slice.items():
-            result[key]=windowing(value)
-        return result
-    
-    def loadImage3D(self):
-        '''
-            Load images under 3D mode and apply
-        windowing to each of them
-
-        return:
-            result: dict, key=patient name, value=3-D image
-        '''
-        result={}
-        for key, value in self.slice.items():
-            image=[windowing(file, self.experimentConfiguration.window) for file in value]
-            result[key]=np.stack(image).astype("float32")
-        return result
-    
     def splitTrainValidationKey(self):
         '''
             Split the slice dataset into train, validation and test dataset
@@ -210,32 +167,85 @@ class DataHandler:
 
         return trainKey, validationKey, testKey
     
-    def splitTrainValidationImage(self):
+    def constructDataset(self, tag):
         '''
-            Split the image dataset into train, validation and test dataset
-        according to the given proportions
+            Construct the corresponding dataset according to
+        the tag and configuration
         '''
-        train=[self.image[key] for key in self.trainKey]
-        validation=[self.image[key] for key in self.validationKey]
-        test=[self.image[key] for key in self.testKey]
+        if self.loadingConfiguration.mode=="2D":
+            if tag=="train":
+                return self.constructDataset2D(self.trainKey)
+            elif tag=="validation":
+                return self.constructDataset2D(self.validationKey)
+            else:
+                return self.constructDataset2D(self.testKey)
+        else:
+            if tag=="train":
+                return self.constructDataset3D(self.trainKey)
+            elif tag=="validation":
+                return self.constructDataset3D(self.validationKey)
+            else:
+                return self.constructDataset3D(self.testKey)
 
-        return train, validation, test
-
-    def patchExtraction(self):
+    def constructDataset2D(self, keys):
+        return [self.loadImage2D(key) for key in keys]
+    
+    def constructDataset3D(self, keys):
+        return [self.loadImage3D(key) for key in keys]
+    
+    def loadImage2D(self, key):
         '''
-            Patch the train and validation according to the experiment configuration
+            Load 2-D image with given key and apply
+        windowing
+
+        input:
+            key: string, the file path of the dicom file
+
+        return:
+            result: np.ndarray, 2-D image after windowing
+        '''
+        result=self.loadFile2D(key)
+        if self.loadingConfiguration.reshape!=None:
+            return cv2.resize(windowing(result), self.loadingConfiguration.reshape)
+        else:
+            return windowing(result)
+    
+    def loadImage3D(self,key):
+        '''
+            Load 3-D image with given key and apply
+        windowing
+
+        input:
+            key: string, the patient name
+
+        return:
+            result: np.ndarray, 3-D image after windowing
+        '''
+        file=self.loadFile3D(key)  
+        if self.loadingConfiguration.reshape!=None:
+            image=[cv2.resize(windowing(slice, self.experimentConfiguration.window), self.loadingConfiguration.reshape) for slice in file]
+        else:
+            image=[windowing(slice, self.experimentConfiguration.window) for slice in file]
+        return np.stack(image).astype("float32")
+    
+    def loadFile2D(self, key):
+        return dicom.read_file(self.slice[key])
+    
+    def loadFile3D(self, key):
+        return [dicom.read_file(slice) for slice in self.slice[key]]
+
+    def patchExtraction(self, dataset):
+        '''
+            Patch the dataset according to the experiment configuration
 
             If no valid patch window given, convert the dataset to np.array for training
         '''
         if len(self.experimentConfiguration.patchWindowShape)==3:
-            self.train=np.array(patchExtraction3D(self.train, self.experimentConfiguration.patchWindowShape))
-            self.validation=np.array(patchExtraction3D(self.validation, self.experimentConfiguration.patchWindowShape))
+            return np.array(patchExtraction3D(dataset, self.experimentConfiguration.patchWindowShape))
         elif len(self.experimentConfiguration.patchWindowShape)==2:
-            self.train=np.array(patchExtraction2D(self.train, self.experimentConfiguration.patchWindowShape, self.experimentConfiguration.patchStep))
-            self.validation=np.array(patchExtraction2D(self.train, self.experimentConfiguration.patchWindowShape, self.experimentConfiguration.patchStep))
+            return np.array(patchExtraction2D(dataset, self.experimentConfiguration.patchWindowShape, self.experimentConfiguration.patchStep))
         else:
-            self.train=np.array(self.train)
-            self.validation=np.array(self.validation)
+            return np.array(dataset)
 
     def getBatch(self, dataset, step, device):
         '''
@@ -257,27 +267,42 @@ class DataHandler:
         result=np.expand_dims(result, axis=1)
         result=torch.from_numpy(result).float()
         return Variable(result, requires_grad=True).to(device)
+
+    def getSingle(self, index):
+        '''
+            Return one image data from the test dataset
+        with the given index
+        '''
+        if self.loadingConfiguration.mode=="2D":
+            file=self.loadFile2D(self.testKey[index])
+            image=windowing(file)
+        else:
+            file=self.loadFile3D(self.testKey[index])
+            image=[windowing(slice, self.experimentConfiguration.window) for slice in file]
+            image=np.stack(image).astype("float32")
+            
+        return file, image
     
-    def getSingle(self, dataset, index, device):
+    def imageToTensor(self, image, device):
         '''
-            Return one single data from dataset and
-        transfer to the given device
+            Convert the image to torch.tensor on the given device
 
-        input:
-            dataset: list, contains all data used
-            index: int, the index of the target
-            device: torch.device, either cpu or gpu
-        
-        return:
-            result: torch.Variable, could be directly used for test
+            The image could be either 2D or 3D
         '''
-        result=dataset[index]
         for i in range(2):
-            result=np.expand_dims(result, axis=0)
+            image=np.expand_dims(image, axis=0)
+        image=torch.from_numpy(image).float()
+        return Variable(image, requires_grad=True).to(device)
 
-        result=torch.from_numpy(result).float()
-        return Variable(result, requires_grad=True).to(device)
+    def patchReconstruction3D(self, patch, originalShape):
+        '''
+            Reconstruct a 3-D image to its original shape using
+        all patches
 
+            This function only works for non-overlapping patches
+        (from view_as_blocks)
+        '''
+        return patchReconstruction3D(patch, originalShape, self.experimentConfiguration.patchWindowShape)
 
     
 

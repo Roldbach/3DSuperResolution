@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
+from Model.DenseNet import DenseNet
 
+from Model.ParallelNet import ParallelNet
 from Model.UNet import UNet
 from torch.optim import Adam
 
@@ -37,12 +39,18 @@ class ModelHandler:
         '''
             Return the model to the given device
 
-            If multiple device ids are given, return
-        the model in parallel mode
+            The following model could be chosen:
+            (1) UNet: 3D UNet
+            (2) ParallelNet: parallel net backbone + standard 3D convolution
+            (3) VolumeNet: parallel net backbone + Queue block (lightweight convolution)
         '''
-        if "Unet" in type(self.modelConfiguration).__name__:
+        if "UNet" in type(self.modelConfiguration).__name__:
             return self.constructUNetModel(device)
-    
+        elif "ParallelNet" in type(self.modelConfiguration).__name__:
+            return self.constructParallelNetModel(device)
+        elif "DenseNet" in type(self.modelConfiguration).__name__:
+            return self.constructDenseNetModel(device)
+
     def constructUNetModel(self, device):
         model=UNet(
             in_channels=self.modelConfiguration.inputChannel,
@@ -53,6 +61,27 @@ class ModelHandler:
         )
         return model.to(device)
     
+    def constructParallelNetModel(self, device):
+        model=ParallelNet(
+            inputChannel=self.modelConfiguration.inputChannel,
+            channel=self.modelConfiguration.channel,
+            level=self.modelConfiguration.level,
+            factor=self.modelConfiguration.factor,
+            kernel=self.modelConfiguration.kernel,
+            stride=self.modelConfiguration.stride
+        )
+        return model.to(device)
+
+    def constructDenseNetModel(self, device):
+        model=DenseNet(
+            inputChannel=self.modelConfiguration.inputChannel,
+            channel=self.modelConfiguration.channel,
+            level=self.modelConfiguration.level,
+            kernel=self.modelConfiguration.kernel,
+            stride=self.modelConfiguration.stride
+        )
+        return model.to(device)
+
     def constructOptimizer(self, modelParameter):
         '''
             Return the optimizer with given configuration

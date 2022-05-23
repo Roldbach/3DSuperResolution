@@ -18,35 +18,3 @@ def superLoss(prediction, target, mode="psnr",data_range=255):
         return PSNR(prediction,target,data_range=data_range)
     else:
         return SSIM(prediction,target,data_range=data_range)
-
-def evaluatePrediction(prediction, target, name, path):
-    '''
-        Evaluate every prediction through RMSE, PSNR, SSIM with respect to the target
-    in the 0~255 scale, save and report those results
-
-        This function could be used for both 2D and 3D image arrays
-        (1) For 2D image arrays, the input should be in the shape: (number, height, width)
-        (2) For 3D image arrays, the input should be in the shape: (number, depth, height, width)
-    '''
-    rmse=[]
-    psnr=[]
-    ssim=[]
-
-    for i in range(len(prediction)):
-        rmse.append(superLoss((prediction[i]*255).astype("uint8"),(target[i]*255).astype("uint8"),mode="rmse"))      
-        psnr.append(superLoss((prediction[i]*255).astype("uint8"),(target[i]*255).astype("uint8"),mode="psnr")) 
-        ssim.append(superLoss((prediction[i]*255).astype("uint8"),(target[i]*255).astype("uint8"),mode="ssim")) 
-
-    savePerformance(rmse, name+" rmse", path)
-    savePerformance(psnr, name+" psnr", path)
-    savePerformance(ssim, name+" ssim", path)
-
-    print("The mean psnr is: ",np.mean(psnr))
-    print("The std psnr is: ",np.std(psnr))
-    print(" ")
-    print("The mean ssim is: ",np.mean(ssim))
-    print("The std ssim is: ",np.std(ssim))
-    print(" ")
-    print("The mean rmse is: ",np.mean(rmse))
-    print("The std rmse is: ",np.std(rmse))
-   

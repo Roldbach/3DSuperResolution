@@ -1,5 +1,8 @@
 import pydicom
+from General.DataWriting import saveExperiment, saveDescription
+from General.ImageProcessing import windowing
 from Handler.DataHandler import DataHandler
+from Handler.ExperimentHandler import ExperimentHandler
 from Handler.ModelHandler import ModelHandler
 from Handler.SRDataHandler import SRDataHandler
 import numpy as np
@@ -7,25 +10,14 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as functional
+import pydicom as dicom
 
 from General.Configuration import *
 from General.DataPlotting import plot3DImage, plotImage
 from Model.DenseNet import DenseNet
 from General.Evaluation import superLoss
 from skimage.util import view_as_blocks
-from Helper.TrainHelper import cleanResult, constructSetting
 from torch.optim import Adam
-
-unetConfiguration=UnetConfiguration(inputChannel=1, outputChannel=1, block=4, normalization=None, upMode='resizeconv_linear')
-adamConfiguration=AdamConfiguration(rate=0.00001, beta=(0.9, 0.99))
-
-test=ModelHandler(unetConfiguration, adamConfiguration)
-device=torch.device("cuda")
-device_ids=None
-model, optimizer=test.constructModelOptimizerPair(device, device_ids)
-print(type(model))
-print(type(optimizer))
-print(model)
 
 '''
 def phaseShift2D(input, factor):

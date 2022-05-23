@@ -34,6 +34,10 @@ def windowing(file,window):
         return (image-min)/(max-min)
 
 def patchExtraction2D(dataset, windowShape, step):
+    '''
+        Extract patch for every 2-D image in the dataset
+    and store all of them together
+    '''
     result=[]
     for image in dataset:
         patch=view_as_windows(image, windowShape, step)
@@ -43,6 +47,10 @@ def patchExtraction2D(dataset, windowShape, step):
     return result
 
 def patchExtraction3D(dataset, windowShape):
+    '''
+        Extract patch for every 2-D image in the dataset
+    and store all of them together 
+    '''
     result=[]
     for i in range(len(dataset)):
         template=view_as_blocks(dataset[i], windowShape)
@@ -51,3 +59,24 @@ def patchExtraction3D(dataset, windowShape):
                 for l in range(template.shape[2]):
                     result.append(template[j][k][l])
     return result
+
+def patchReconstruction3D(patch, originalShape, patchShape):
+    '''
+        Reconstruct a 3-D image to its original shape using
+    all patches
+
+        This function only works for non-overlapping patches
+    (from view_as_blocks)
+    '''
+    result=np.zeros(originalShape)
+    depthStep, heightStep, widthStep=int(originalShape[0]/patchShape[0]), int(originalShape[1]/patchShape[1]), int(originalShape[2]/patchShape[2])
+
+    index=0
+    for i in range(depthStep):
+        for j in range(heightStep):
+            for k in range(widthStep):
+                result[i*patchShape[0]:(i+1)*patchShape[0], j*patchShape[1]:(j+1)*patchShape[1], k*patchShape[2]:(k+1)*patchShape[2]]=patch[index]
+                index+=1
+    
+    return result
+

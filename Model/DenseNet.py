@@ -20,18 +20,17 @@ class DenseNet(nn.Module):
     '''
         Dense net backbone with standard 3D convolution
     '''
-    def __init__(self, inputChannel, channel, level):
+    def __init__(self, inputChannel, channel, level, kernel, stride):
         super(DenseNet, self).__init__()
-        self.channel=channel
-        self.level=level
-
-        self.layer=[DenseNetConvolution3DBlock(inputChannel)]+[DenseNetConvolution3DBlock(i*self.channel) for i in range(1,self.level-1)]+[DenseNetConvolution3DBlock((self.level-1)*self.channel,inputChannel)]
-        self.layer=nn.ModuleList(self.layer)
+        self.inputLayer=[DenseNetConvolution3DBlock(inputChannel, channel, kernel, stride)]
+        self.intermediatelayer=[DenseNetConvolution3DBlock(i*channel, channel, kernel, stride) for i in range(1, level-1)]
+        self.outputLayer=[DenseNetConvolution3DBlock((level-1)*channel, inputChannel, kernel, stride)]
+        self.layer=nn.ModuleList(self.inputLayer+self.intermediatelayer+self.outputLayer)
     
     def forward(self, input):
         result=[]
 
-        for i in range(self.level):
+        for i in range(len(self.layer)):
             if i==0:
                 result.append(self.layer[i](input))
             else:
